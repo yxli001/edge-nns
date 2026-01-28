@@ -107,7 +107,7 @@ def main(args):
     print(f"Test loss: {loss}")
     print(f"Test accuracy: {acc}")
     print(f"Test loss: {loss}", file=open(model_log_file, "w"))
-    print(f"Test accuracy: {acc}", file=open(model_log_file, "w"))
+    print(f"Test accuracy: {acc}", file=open(model_log_file, "a"))
 
 
 
