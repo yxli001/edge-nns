@@ -1,7 +1,7 @@
-save_dir: dense_baseline_fkeras
+save_dir: dense_baseline_qkeras
 
 model:
-  name: fkeras_dense_model
+  name: qkeras_dense_model
   input_shape: 13
   dense_width: 58
   logit_total_bits: 4

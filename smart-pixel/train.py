@@ -4,9 +4,8 @@ import argparse
 
 import pandas as pd
 import tensorflow as tf
-from sklearn.preprocessing import StandardScaler
 
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
 
 import models
@@ -45,20 +44,16 @@ def load_data(base_dir="./data/ds8_only", local_id=0):
 
 def load_model(config, pretrained_model=None):
     build_model = getattr(models, config["model"]["name"])
-    if "fkeras" in config["model"]["name"]:
-        model = build_model(
-            config["model"]["input_shape"], 
-            dense_width=config["model"]["dense_width"],
-            logit_total_bits=config["model"]["logit_total_bits"],
-            logit_int_bits=config["model"]["logit_int_bits"],
-            activation_total_bits=config["model"]["activation_total_bits"],
-            activation_int_bits=config["model"]["activation_int_bits"],
-        )
-    else: # Float
-         model = build_model(
-            config["model"]["input_shape"], 
-            dense_width=config["model"]["dense_width"],
-         )
+
+    model = build_model(
+      config["model"]["input_shape"], 
+      dense_width=config["model"]["dense_width"],
+      logit_total_bits=config["model"]["logit_total_bits"],
+      logit_int_bits=config["model"]["logit_int_bits"],
+      activation_total_bits=config["model"]["activation_total_bits"],
+      activation_int_bits=config["model"]["activation_int_bits"],
+    )
+
     # Load pretrained model
     if pretrained_model:
         model.load_weights(pretrained_model)
