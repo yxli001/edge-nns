@@ -1,0 +1,10 @@
+save_dir: dense_large2_qkeras
+
+model:
+  name: qkeras_dense_model
+  input_shape: 13
+  dense_widths: [58, 58]
+  logit_total_bits: 4
+  logit_int_bits: 0
+  activation_total_bits: 8
+  activation_int_bits: 3

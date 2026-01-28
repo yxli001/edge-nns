@@ -3,13 +3,13 @@
 PATH_PREFIX=./configs
 
 if [ $1 -eq 0 ]; then
-    CONFIG=$PATH_PREFIX/baseline_fkeras.yml
+    CONFIG=$PATH_PREFIX/baseline_qkeras.yml
 elif [ $1 -eq 1 ]; then
-    CONFIG=$PATH_PREFIX/small_fkeras.yml
+    CONFIG=$PATH_PREFIX/small_qkeras.yml
 elif [ $1 -eq 2 ]; then
-    CONFIG=$PATH_PREFIX/large_fkeras.yml
+    CONFIG=$PATH_PREFIX/large_qkeras.yml
 elif [ $1 -eq 3 ]; then
-    CONFIG=$PATH_PREFIX/large2_fkeras.yml
+    CONFIG=$PATH_PREFIX/large2_qkeras.yml
 else
     echo "Error"
 fi

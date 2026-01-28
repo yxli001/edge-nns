@@ -4,9 +4,8 @@ import argparse
 
 import pandas as pd
 import tensorflow as tf
-from sklearn.preprocessing import StandardScaler
 
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
 
 import models
@@ -45,20 +44,16 @@ def load_data(base_dir="./data/ds8_only", local_id=0):
 
 def load_model(config, pretrained_model=None):
     build_model = getattr(models, config["model"]["name"])
-    if "fkeras" in config["model"]["name"]:
-        model = build_model(
-            config["model"]["input_shape"], 
-            dense_width=config["model"]["dense_width"],
-            logit_total_bits=config["model"]["logit_total_bits"],
-            logit_int_bits=config["model"]["logit_int_bits"],
-            activation_total_bits=config["model"]["activation_total_bits"],
-            activation_int_bits=config["model"]["activation_int_bits"],
-        )
-    else: # Float
-         model = build_model(
-            config["model"]["input_shape"], 
-            dense_width=config["model"]["dense_width"],
-         )
+
+    model = build_model(
+      config["model"]["input_shape"], 
+      dense_widths=config["model"]["dense_widths"],
+      logit_total_bits=config["model"]["logit_total_bits"],
+      logit_int_bits=config["model"]["logit_int_bits"],
+      activation_total_bits=config["model"]["activation_total_bits"],
+      activation_int_bits=config["model"]["activation_int_bits"],
+    )
+
     # Load pretrained model
     if pretrained_model:
         model.load_weights(pretrained_model)
@@ -87,7 +82,7 @@ def main(args):
     print(model.summary())
 
     # Train model
-    model_name = f"{config['model']['name']}_{config['model']['dense_width']}"
+    model_name = f"{config['model']['name']}_{'_'.join(map(str, config['model']['dense_widths']))}"
     model_file = os.path.join(save_dir, f"{model_name}.h5")
     model_log_file = os.path.join(save_dir, f"{model_name}_eval.txt")
 
@@ -111,7 +106,7 @@ def main(args):
     loss, acc = model.evaluate(X_test, y_test)
     print(f"Test loss: {loss}")
     print(f"Test accuracy: {acc}")
-    print(f"Test loss: {loss}", file=open(model_log_file, "a"))
+    print(f"Test loss: {loss}", file=open(model_log_file, "w"))
     print(f"Test accuracy: {acc}", file=open(model_log_file, "a"))
 
 

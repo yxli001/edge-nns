@@ -1,9 +1,9 @@
-save_dir: dense_baseline_fkeras_test
+save_dir: dense_baseline_qkeras
 
 model:
-  name: fkeras_dense_model
+  name: qkeras_dense_model
   input_shape: 13
-  dense_width: 58
+  dense_widths: [58] 
   logit_total_bits: 4
   logit_int_bits: 0
   activation_total_bits: 8
