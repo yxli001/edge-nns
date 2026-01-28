@@ -11,7 +11,10 @@ elif [ $MODEL_INDEX -eq 1 ]; then
     PRETRAINED_MODEL=./dense_small_qkeras/qkeras_dense_model_16.h5
 elif [ $MODEL_INDEX -eq 2 ]; then
     CONFIG=./configs/large_qkeras.yml
-    PRETRAINED_MODEL=./dense_large2_qkeras/qkeras_dense_model_512.h5
+    PRETRAINED_MODEL=./dense_large_qkeras/qkeras_dense_model_512.h5
+elif [ $MODEL_INDEX -eq 3 ]; then
+    CONFIG=./configs/large2_qkeras.yml
+    PRETRAINED_MODEL=./dense_large2_qkeras/qkeras_dense_model_58_58.h5
 else
     echo "Error"
 fi

@@ -47,7 +47,7 @@ def load_model(config, pretrained_model=None):
 
     model = build_model(
       config["model"]["input_shape"], 
-      dense_width=config["model"]["dense_width"],
+      dense_widths=config["model"]["dense_widths"],
       logit_total_bits=config["model"]["logit_total_bits"],
       logit_int_bits=config["model"]["logit_int_bits"],
       activation_total_bits=config["model"]["activation_total_bits"],
@@ -82,7 +82,7 @@ def main(args):
     print(model.summary())
 
     # Train model
-    model_name = f"{config['model']['name']}_{config['model']['dense_width']}"
+    model_name = f"{config['model']['name']}_{'_'.join(map(str, config['model']['dense_widths']))}"
     model_file = os.path.join(save_dir, f"{model_name}.h5")
     model_log_file = os.path.join(save_dir, f"{model_name}_eval.txt")
 
@@ -106,8 +106,8 @@ def main(args):
     loss, acc = model.evaluate(X_test, y_test)
     print(f"Test loss: {loss}")
     print(f"Test accuracy: {acc}")
-    print(f"Test loss: {loss}", file=open(model_log_file, "a"))
-    print(f"Test accuracy: {acc}", file=open(model_log_file, "a"))
+    print(f"Test loss: {loss}", file=open(model_log_file, "w"))
+    print(f"Test accuracy: {acc}", file=open(model_log_file, "w"))
 
 
 

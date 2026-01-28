@@ -8,6 +8,8 @@ elif [ $1 -eq 1 ]; then
     CONFIG=$PATH_PREFIX/small_qkeras.yml
 elif [ $1 -eq 2 ]; then
     CONFIG=$PATH_PREFIX/large_qkeras.yml
+elif [ $1 -eq 3 ]; then
+    CONFIG=$PATH_PREFIX/large2_qkeras.yml
 else
     echo "Error"
 fi

@@ -3,7 +3,7 @@ save_dir: dense_small_qkeras
 model:
   name: qkeras_dense_model
   input_shape: 13
-  dense_width: 16
+  dense_widths: [16]
   logit_total_bits: 3
   logit_int_bits: 0
   activation_total_bits: 6

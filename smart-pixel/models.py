@@ -22,7 +22,7 @@ def dense_model(in_shape, dense_width=128):
 
 def qkeras_dense_model(
     in_shape,
-    dense_width=58,
+    dense_widths=[58],
     logit_total_bits=4,
     logit_int_bits=0,
     activation_total_bits=8,
@@ -44,21 +44,24 @@ def qkeras_dense_model(
         activation_int_bits,
     )
     x = x_in = Input(in_shape, name="input1")
-    x = QDense(
-        dense_width,
-        kernel_quantizer=logit_quantizer,
-        bias_quantizer=logit_quantizer,
-        name="dense1",
-    )(x)
-    x = BatchNormalization()(x)
 
-    x = QActivation(activation=activation_quantizer)(x)
+    for i, w in enumerate(dense_widths):
+      x = QDense(
+          w,
+          kernel_quantizer=logit_quantizer,
+          bias_quantizer=logit_quantizer,
+          name=f"dense{i+1}",
+      )(x)
+      x = BatchNormalization()(x)
+      x = QActivation(activation=activation_quantizer)(x)
+
     x = QDense(
         NUM_CLASSES,
         kernel_quantizer=logit_quantizer,
         bias_quantizer=logit_quantizer,
-        name="dense2",
+        name="dense_out",
     )(x)
+
     model = tf.keras.models.Model(inputs=x_in, outputs=x)
     return model
 
