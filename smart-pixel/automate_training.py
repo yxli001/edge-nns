@@ -33,13 +33,17 @@ def load_config(config_path):
 def create_output_directory(config, base_output_dir="model_configs"):
     """
     Make a folder for this model's outputs.
-    Format: model_configs/qkeras_dense_model_58_20250127_143022/
+    Uses config params instead of timestamp so identical configs overwrite.
+    Format: model_configs/qkeras_dense_model_58_8_0_4_0/
     """
     model_name = config['model']['name']
     widths = '_'.join(map(str, config['model']['dense_widths']))
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    act_total = config['model']['activation_total_bits']
+    act_int = config['model']['activation_int_bits']
+    logit_total = config['model']['logit_total_bits']
+    logit_int = config['model']['logit_int_bits']
     
-    dir_name = f"{model_name}_{widths}_{timestamp}"
+    dir_name = f"{model_name}_{widths}_{act_total}_{act_int}_{logit_total}_{logit_int}"
     output_path = os.path.join(base_output_dir, dir_name)
     
     os.makedirs(output_path, exist_ok=True)
