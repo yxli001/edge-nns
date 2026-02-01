@@ -33,7 +33,7 @@ def load_config(config_path):
 def create_output_directory(config, base_output_dir="model_configs"):
     """
     Make a folder for this model's outputs.
-    Uses config params instead of timestamp so identical configs overwrite.
+    Uses config params 
     Format: model_configs/qkeras_dense_model_58_8_0_4_0/
     """
     model_name = config['model']['name']
