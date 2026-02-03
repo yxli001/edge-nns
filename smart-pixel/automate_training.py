@@ -12,6 +12,7 @@ import glob
 import os
 import yaml
 import shutil
+import itertools
 from datetime import datetime
 
 import tensorflow as tf
@@ -23,6 +24,49 @@ tf.config.run_functions_eagerly(True)
 
 from train import load_data, load_model
 
+def generate_configs():
+    """
+    Generate a bunch of different model configurations to test.
+    Returns list of config dictionaries.
+    """
+    # different architecture options to try
+    dense_widths_options = [
+        [16],
+        [32], 
+        [58],
+        [128],
+        [256],
+        [512],
+        [58, 58],
+        [128, 64],
+        [256, 128, 64],
+    ]
+    
+    # quantization bit width options
+    activation_bits_options = [6, 8]
+    logit_bits_options = [3, 4]
+    
+    configs = []
+    
+    # generate all combinations
+    for widths in dense_widths_options:
+        for act_bits in activation_bits_options:
+            for logit_bits in logit_bits_options:
+                config = {
+                    'model': {
+                        'name': 'qkeras_dense_model',
+                        'input_shape': 13,
+                        'dense_widths': widths,
+                        'logit_total_bits': logit_bits,
+                        'logit_int_bits': 0,
+                        'activation_total_bits': act_bits,
+                        'activation_int_bits': 0,
+                    }
+                }
+                configs.append(config)
+    
+    print(f"Generated {len(configs)} different configurations to train")
+    return configs
 
 def load_config(config_path):
     """Load yaml config."""
@@ -50,17 +94,18 @@ def create_output_directory(config, base_output_dir="model_configs"):
     return output_path
 
 
-def train_single_config(config_path, base_output_dir="model_configs"):
+def train_single_config(config, base_output_dir="model_configs"):
     """
-    Train one model from a config file.
-    Saves weights, accuracy, and a copy of the config.
+    Train one model from a config dict.
+    Saves weights, accuracy, and the config yaml.
     """
-    print(f"\n{'='*60}")
-    print(f"Training: {config_path}")
-    print(f"{'='*60}\n")
+    # create a string representation for logging
+    widths_str = '_'.join(map(str, config['model']['dense_widths']))
+    config_str = f"{widths_str} (act:{config['model']['activation_total_bits']}, logit:{config['model']['logit_total_bits']})"
     
-    # load the config
-    config = load_config(config_path)
+    print(f"\n{'='*60}")
+    print(f"Training config: {config_str}")
+    print(f"{'='*60}\n")
     
     # make output folder
     output_dir = create_output_directory(config, base_output_dir)
@@ -72,7 +117,6 @@ def train_single_config(config_path, base_output_dir="model_configs"):
     
     # build the model
     print("Building model...")
-
     # fix input_shape format - needs to be tuple not int
     if isinstance(config['model']['input_shape'], int):
         config['model']['input_shape'] = (config['model']['input_shape'],)
@@ -124,9 +168,10 @@ def train_single_config(config_path, base_output_dir="model_configs"):
         f.write(f"Test loss: {loss}\n")
         f.write(f"Test accuracy: {accuracy}\n")
     
-    # copy the config into the output folder so we know what settings were used
+    # save the config to yaml inside the output folder
     config_copy_path = os.path.join(output_dir, "config.yaml")
-    shutil.copy(config_path, config_copy_path)
+    with open(config_copy_path, 'w') as f:
+        yaml.dump(config, f)
     
     print(f"\n✓ Done! Results saved to: {output_dir}")
     print(f"  - Weights: weights.h5")
@@ -134,52 +179,50 @@ def train_single_config(config_path, base_output_dir="model_configs"):
     print(f"  - Config: config.yaml")
     
     return {
-        'config_path': config_path,
+        'config': config,
         'output_dir': output_dir,
         'loss': loss,
         'accuracy': accuracy
     }
 
-
-def train_all_configs(config_dir="configs", base_output_dir="model_configs"):
+def train_generated_configs(base_output_dir="model_configs"):
     """
-    Train all the config files in the configs directory.
+    Generate and train a bunch of different configs.
     """
-    # find all yml files
-    config_pattern = os.path.join(config_dir, "*.yml")
-    config_files = sorted(glob.glob(config_pattern))
-    
-    if not config_files:
-        print(f"No config files found in {config_dir}")
-        return
-    
-    print(f"Found {len(config_files)} config files to train:")
-    for cf in config_files:
-        print(f"  - {cf}")
-    print()
+    configs = generate_configs()
     
     # train each one
     results = []
-    for i, config_path in enumerate(config_files, 1):
-        print(f"\n[{i}/{len(config_files)}] Processing {config_path}")
+    for i, config in enumerate(configs, 1):
+        print(f"\n[{i}/{len(configs)}] Processing configuration {i}")
         try:
-            result = train_single_config(config_path, base_output_dir)
+            result = train_single_config(config, base_output_dir)
             results.append(result)
         except Exception as e:
-            print(f"ERROR training {config_path}: {e}")
+            print(f"ERROR training config {i}: {e}")
             import traceback
             traceback.print_exc()
             continue
     
-    # print summary of all results
+    # print summary
     print("\n" + "="*60)
     print("TRAINING SUMMARY")
     print("="*60)
     for result in results:
-        config_name = os.path.basename(result['config_path'])
-        print(f"{config_name:30s} | Acc: {result['accuracy']:.4f} | Loss: {result['loss']:.4f}")
+        widths = '_'.join(map(str, result['config']['model']['dense_widths']))
+        act_bits = result['config']['model']['activation_total_bits']
+        logit_bits = result['config']['model']['logit_total_bits']
+        config_name = f"{widths}_a{act_bits}_l{logit_bits}"
+        print(f"{config_name:20s} | Acc: {result['accuracy']:.4f} | Loss: {result['loss']:.4f}")
     print("="*60)
 
+def train_from_config_file(config_path, base_output_dir="model_configs"):
+    """
+    Train from a specific config yaml file.
+    """
+    print(f"Training from config file: {config_path}")
+    config = load_config(config_path)
+    train_single_config(config, base_output_dir)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -201,14 +244,14 @@ def main():
     args = parser.parse_args()
     
     if args.config:
-        # train just one config
+        # train from a specific config file
         if not os.path.exists(args.config):
             print(f"ERROR: Config file not found: {args.config}")
             return
-        train_single_config(args.config, args.output_dir)
+        train_from_config_file(args.config, args.output_dir)
     else:
-        # train all configs in the configs folder
-        train_all_configs(config_dir="configs", base_output_dir=args.output_dir)
+        # generate and train a bunch of configs automatically
+        train_generated_configs(base_output_dir=args.output_dir)
 
 
 if __name__ == "__main__":
