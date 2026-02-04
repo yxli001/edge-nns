@@ -29,41 +29,37 @@ def generate_configs():
     Generate a bunch of different model configurations to test.
     Returns list of config dictionaries.
     """
-    # different architecture options to try
-    dense_widths_options = [
-        [16],
-        [32], 
-        [58],
-        [128],
-        [256],
-        [512],
-        [58, 58],
-        [128, 64],
-        [256, 128, 64],
-    ]
+    import random
     
-    # quantization bit width options
-    activation_bits_options = [6, 8]
-    logit_bits_options = [3, 4]
+    width_options = [16, 32, 58, 64, 128, 256, 512]
+    
+    activation_bits_options = [2, 4, 6, 8]
+    logit_bits_options = [2, 4, 6, 8]
     
     configs = []
     
-    # generate all combinations
-    for widths in dense_widths_options:
-        for act_bits in activation_bits_options:
-            for logit_bits in logit_bits_options:
-                config = {
-                    'model': {
-                        'name': 'qkeras_dense_model',
-                        'input_shape': 13,
-                        'dense_widths': widths,
-                        'logit_total_bits': logit_bits,
-                        'logit_int_bits': 0,
-                        'activation_total_bits': act_bits,
-                        'activation_int_bits': 0,
-                    }
-                }
-                configs.append(config)
+    #50 configs. 
+    for _ in range(50):
+
+        num_layers = random.randint(1, 2)
+        
+        widths = tuple(random.choice(width_options) for _ in range(num_layers))
+        
+        act_bits = random.choice(activation_bits_options)
+        logit_bits = random.choice(logit_bits_options)
+        
+        config = {
+            'model': {
+                'name': 'qkeras_dense_model',
+                'input_shape': (13,),
+                'dense_widths': widths,
+                'logit_total_bits': logit_bits,
+                'logit_int_bits': 0,
+                'activation_total_bits': act_bits,
+                'activation_int_bits': 0,
+            }
+        }
+        configs.append(config)
     
     print(f"Generated {len(configs)} different configurations to train")
     return configs
@@ -171,7 +167,8 @@ def train_single_config(config, base_output_dir="model_configs"):
     # save the config to yaml inside the output folder
     config_copy_path = os.path.join(output_dir, "config.yaml")
     with open(config_copy_path, 'w') as f:
-        yaml.dump(config, f)
+        yaml_content = yaml.dump(config, default_flow_style=False, indent=2)
+        f.write(yaml_content)
     
     print(f"\n✓ Done! Results saved to: {output_dir}")
     print(f"  - Weights: weights.h5")
