@@ -1,4 +1,3 @@
-save_dir: dense_baseline_qkeras
 
 model:
   name: qkeras_dense_model
