@@ -7,29 +7,27 @@ Usage:
     python automate_training.py --config path.yml   # trains one specific config
 """
 
+import random
 import argparse
-import glob
 import os
 import yaml
-import shutil
-import itertools
-from datetime import datetime
 
 import tensorflow as tf
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
 
+from train import load_data, load_model
+
 # Enable eager execution for QKeras compatibility
 tf.config.run_functions_eagerly(True)
 
-from train import load_data, load_model
+random.seed(42)
 
 def generate_configs():
     """
     Generate a bunch of different model configurations to test.
     Returns list of config dictionaries.
     """
-    import random
     
     width_options = [16, 32, 58, 64, 128, 256, 512]
     
@@ -41,9 +39,9 @@ def generate_configs():
     #50 configs. 
     for _ in range(50):
 
-        num_layers = random.randint(1, 2)
+        num_layers = random.randint(1, 3)
         
-        widths = tuple(random.choice(width_options) for _ in range(num_layers))
+        widths = [random.choice(width_options) for _ in range(num_layers)]
         
         act_bits = random.choice(activation_bits_options)
         logit_bits = random.choice(logit_bits_options)
@@ -51,7 +49,7 @@ def generate_configs():
         config = {
             'model': {
                 'name': 'qkeras_dense_model',
-                'input_shape': (13,),
+                'input_shape': 13,
                 'dense_widths': widths,
                 'logit_total_bits': logit_bits,
                 'logit_int_bits': 0,
@@ -113,9 +111,6 @@ def train_single_config(config, base_output_dir="model_configs"):
     
     # build the model
     print("Building model...")
-    # fix input_shape format - needs to be tuple not int
-    if isinstance(config['model']['input_shape'], int):
-        config['model']['input_shape'] = (config['model']['input_shape'],)
     model = load_model(config)
     
     # compile
@@ -138,7 +133,7 @@ def train_single_config(config, base_output_dir="model_configs"):
         verbose=1
     )
     
-    history = model.fit(
+    model.fit(
         X_train, y_train,
         validation_split=0.2,
         epochs=150,
@@ -171,9 +166,9 @@ def train_single_config(config, base_output_dir="model_configs"):
         f.write(yaml_content)
     
     print(f"\n✓ Done! Results saved to: {output_dir}")
-    print(f"  - Weights: weights.h5")
-    print(f"  - Accuracy: accuracy.txt")
-    print(f"  - Config: config.yaml")
+    print("  - Weights: weights.h5")
+    print("  - Accuracy: accuracy.txt")
+    print("  - Config: config.yaml")
     
     return {
         'config': config,
