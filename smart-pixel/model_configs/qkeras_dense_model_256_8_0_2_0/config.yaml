@@ -1,0 +1,9 @@
+model:
+  activation_int_bits: 0
+  activation_total_bits: 8
+  dense_widths:
+  - 256
+  input_shape: 13
+  logit_int_bits: 0
+  logit_total_bits: 2
+  name: qkeras_dense_model
