@@ -28,6 +28,7 @@ def main():
     df = pd.read_csv('results.csv')
     print(f"Loaded {len(df)} models")
     
+    # graph folder
     os.makedirs('graphs', exist_ok=True)
     
     # Find Pareto optimal models
