@@ -6,7 +6,6 @@ import tensorflow as tf
 import resnet_v1_eembc
 import yaml
 
-
 def yaml_load(config):
     with open(config) as stream:
         param = yaml.safe_load(stream)
