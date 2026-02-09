@@ -1,25 +1,22 @@
 import qkeras
 import numpy as np
 
-import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import (
     Input,
     Dense,
     Activation,
     Flatten,
-    BatchNormalization,
+    Conv2D,
+    AveragePooling2D,
+    Add,
+    BatchNormalization
 )
-from tensorflow.keras.layers import Conv2D, AveragePooling2D, Add
 from tensorflow.keras.regularizers import l1_l2
 from qkeras.qlayers import QDense, QActivation
 from qkeras.qconvolutional import QConv2D
 from qkeras.qconv2d_batchnorm import QConv2DBatchnorm
 from qkeras.qpooling import QAveragePooling2D
-
-
-# define model
-
 
 def resnet_v1_eembc(
     input_shape=[32, 32, 3],

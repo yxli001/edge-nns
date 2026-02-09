@@ -1,8 +1,4 @@
-import os
-if os.system('nvidia-smi') == 0:
-    import setGPU
 import argparse
-import tensorflow as tf
 import resnet_v1_eembc
 import yaml
 

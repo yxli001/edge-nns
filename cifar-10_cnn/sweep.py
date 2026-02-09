@@ -7,6 +7,14 @@ import tensorflow as tf
 
 NUM_CLASSES = 10
 
+def ensure_gpu_or_fail():
+  gpus = tf.config.list_physical_devices("GPU")
+  if not gpus:
+    raise RuntimeError("No GPUs visible to TensorFlow. Aborting.")
+  for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
+  tf.config.set_soft_device_placement(False)
+
 def gen_configs():
   stack_options = [
     {
@@ -157,6 +165,7 @@ def gen_configs():
   return configs
 
 def train_single(config, save_dir):
+  ensure_gpu_or_fail()
   if not os.path.exists("./models"):
     os.makedirs("./models")
 
@@ -216,6 +225,11 @@ def train_all():
   for i, config in enumerate(configs):
     model_dir = f"./models/model_{i}"
     config_file = f"{model_dir}/config.yml"
+
+    # if eval.txt exists, skip training
+    if os.path.exists(os.path.join(model_dir, "eval.txt")):
+      print(f"Model {i} already trained, skipping...")
+      continue
 
     if not os.path.exists(model_dir):
       os.makedirs(model_dir)
