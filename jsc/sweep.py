@@ -8,13 +8,11 @@ from sklearn.datasets import fetch_openml
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
-tf.config.run_functions_eagerly(True)
-tf.data.experimental.enable_debug_mode()
-
 NUM_CLASSES = 5
 
+
 def gen_configs():
-    
+    # different width options
     width_options = [
         [32],
         [64],
