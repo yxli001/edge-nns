@@ -1,0 +1,44 @@
+data:
+  input_shape:
+  - 32
+  - 32
+  - 3
+  name: cifar10
+  num_classes: 10
+fit:
+  batch_size: 32
+  compile:
+    initial_lr: 0.001
+    loss: categorical_crossentropy
+    lr_decay: 0.99
+    optimizer: Adam
+  epochs: 200
+  patience: 40
+  verbose: 1
+model:
+  avg_pooling: 0
+  filters:
+  - 8
+  - 8
+  final_activation: 1
+  kernels:
+  - 3
+  - 3
+  - 3
+  l1: 0
+  l2: 0.0001
+  name: resnet_v1_eembc_quantized
+  skip: 1
+  strides:
+  - '411'
+pruning:
+  sparsity: 1.0
+quantization:
+  activation_int_bits: 2
+  activation_quantizer: quantized_relu
+  activation_total_bits: 4
+  alpha: 1
+  logit_int_bits: 2
+  logit_quantizer: quantized_bits
+  logit_total_bits: 6
+  use_stochastic_rounding: 0

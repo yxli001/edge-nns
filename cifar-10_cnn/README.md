@@ -29,18 +29,3 @@ To load the Large model, run:
 ```
 ./scripts/load_model.sh 2
 ```
-
-### FKeras versions
-To load the Medium model, run:
-```
-./scripts/load_model.sh 3
-```
-
-To load the Small model, run:
-```
-./scripts/load_model.sh 4
-```
-
-To load the Large model, run:
-```
-./scripts/load_model.sh 5

@@ -1,27 +1,22 @@
 import qkeras
 import numpy as np
 
-import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import (
     Input,
     Dense,
     Activation,
     Flatten,
-    BatchNormalization,
+    Conv2D,
+    AveragePooling2D,
+    Add,
+    BatchNormalization
 )
-from tensorflow.keras.layers import Conv2D, AveragePooling2D, MaxPooling2D, Add
 from tensorflow.keras.regularizers import l1_l2
-from fkeras.fdense import FQDense
-from fkeras.fconvolutional import FQConv2D
 from qkeras.qlayers import QDense, QActivation
 from qkeras.qconvolutional import QConv2D
 from qkeras.qconv2d_batchnorm import QConv2DBatchnorm
 from qkeras.qpooling import QAveragePooling2D
-
-
-# define model
-
 
 def resnet_v1_eembc(
     input_shape=[32, 32, 3],
@@ -531,7 +526,7 @@ def resnet_v1_eembc_quantized_fkeras(
 
     # Input layer, change kernel size to 7x7 and strides to 2 for an official resnet
     inputs = Input(shape=input_shape)
-    x = FQConv2D(
+    x = QConv2D(
         num_filters[0],
         kernel_size=kernel_sizes[0],
         strides=int(strides[0][0]),
@@ -547,7 +542,7 @@ def resnet_v1_eembc_quantized_fkeras(
 
     # First stack
     # Weight layers
-    y = FQConv2D(
+    y = QConv2D(
         num_filters[1],
         kernel_size=kernel_sizes[1],
         strides=int(strides[0][1]),
@@ -560,7 +555,7 @@ def resnet_v1_eembc_quantized_fkeras(
     )(x)
     y = BatchNormalization()(y)
     y = QActivation(activation=activation_quantizer)(y)
-    y = FQConv2D(
+    y = QConv2D(
         num_filters[0],
         kernel_size=kernel_sizes[2],
         strides=int(strides[0][2]),
@@ -589,7 +584,7 @@ def resnet_v1_eembc_quantized_fkeras(
     ):
         # Second stack
         # Weight layers
-        y = FQConv2D(
+        y = QConv2D(
             num_filters[2],
             kernel_size=kernel_sizes[3],
             strides=int(strides[1][0]),
@@ -602,7 +597,7 @@ def resnet_v1_eembc_quantized_fkeras(
         )(x)
         y = BatchNormalization()(y)
         y = QActivation(activation=activation_quantizer)(y)
-        y = FQConv2D(
+        y = QConv2D(
             num_filters[3],
             kernel_size=kernel_sizes[4],
             strides=int(strides[1][1]),
@@ -616,7 +611,7 @@ def resnet_v1_eembc_quantized_fkeras(
         y = BatchNormalization()(y)
 
         # Adjust for change in dimension due to stride in identity
-        x = FQConv2D(
+        x = QConv2D(
             num_filters[3],
             kernel_size=kernel_sizes[5],
             strides=int(strides[1][2]),
@@ -645,7 +640,7 @@ def resnet_v1_eembc_quantized_fkeras(
     ):
         # Third stack
         # Weight layers
-        y = FQConv2D(
+        y = QConv2D(
             num_filters[4],
             kernel_size=kernel_sizes[6],
             strides=int(strides[2][0]),
@@ -658,7 +653,7 @@ def resnet_v1_eembc_quantized_fkeras(
         )(x)
         y = BatchNormalization()(y)
         y = QActivation(activation=activation_quantizer)(y)
-        y = FQConv2D(
+        y = QConv2D(
             num_filters[5],
             kernel_size=kernel_sizes[7],
             strides=int(strides[2][1]),
@@ -672,7 +667,7 @@ def resnet_v1_eembc_quantized_fkeras(
         y = BatchNormalization()(y)
 
         # Adjust for change in dimension due to stride in identity
-        x = FQConv2D(
+        x = QConv2D(
             num_filters[5],
             kernel_size=kernel_sizes[8],
             strides=int(strides[2][2]),
@@ -701,7 +696,7 @@ def resnet_v1_eembc_quantized_fkeras(
     ):
         # Fourth stack (not complete stack)
         # Weight layers
-        y = FQConv2D(
+        y = QConv2D(
             num_filters[6],
             kernel_size=kernel_sizes[9],
             strides=int(strides[3][0]),
@@ -722,7 +717,7 @@ def resnet_v1_eembc_quantized_fkeras(
         and kernel_sizes[10] > 0
     ):
         y = x
-        y = FQConv2D(
+        y = QConv2D(
             num_filters[7],
             kernel_size=kernel_sizes[10],
             strides=int(strides[3][1]),
@@ -751,7 +746,7 @@ def resnet_v1_eembc_quantized_fkeras(
 
     y = Flatten()(x)
     # Changed output to separate QDense but did not quantize softmax as specified
-    outputs = FQDense(
+    outputs = QDense(
         num_classes,
         kernel_quantizer=logit_quantizer,
         bias_quantizer=logit_quantizer,
