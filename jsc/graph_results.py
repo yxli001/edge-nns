@@ -2,7 +2,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import yaml
 
 
 def find_pareto_frontier(df, x_col='num_params', y_col='test_accuracy'):
@@ -24,66 +23,9 @@ def find_pareto_frontier(df, x_col='num_params', y_col='test_accuracy'):
     return df.iloc[pareto_points]
 
 
-def estimate_jsc_params(config):
-    try:
-        dense_widths = config['model'].get('dense_widths', [])
-        input_shape = config['data']['input_shape'][0]
-        num_classes = config['data']['num_classes']
-        
-        params = 0
-        prev_width = input_shape
-        for width in dense_widths:
-            params += prev_width * width + width
-            prev_width = width
-        params += prev_width * num_classes + num_classes
-        
-        return params
-    except Exception as e:
-        print(f"Warning: Could not estimate parameters: {e}")
-        return None
-
-
-def extract_additional_info(model_dir="../jsc/models"):
-    results = []
-    for model_name in sorted(os.listdir(model_dir)):
-        model_path = os.path.join(model_dir, model_name)
-        if not os.path.isdir(model_path):
-            continue
-            
-        config_path = os.path.join(model_path, "config.yml")
-        if os.path.exists(config_path):
-            with open(config_path, "r") as f:
-                config = yaml.safe_load(f)
-            
-            model_cfg = config.get("model", {})
-            quant_cfg = config.get("quantization", {})
-            data_cfg = config.get("data", {})
-            
-            dense_widths = model_cfg.get("dense_widths", [])
-            widths_str = "-".join(map(str, dense_widths)) if dense_widths else ""
-            
-            num_params = estimate_jsc_params(config)
-            
-            results.append({
-                "model_name": model_name,
-                "dense_widths": widths_str,
-                "num_params": num_params if num_params is not None else "",
-                "activation_bit_width": quant_cfg.get("activation_total_bits", ""),
-                "logit_bit_width": quant_cfg.get("logit_total_bits", ""),
-                "activation_int_bits": quant_cfg.get("activation_int_bits", ""),
-                "logit_int_bits": quant_cfg.get("logit_int_bits", ""),
-                "input_shape": data_cfg.get("input_shape", [""])[0] if data_cfg.get("input_shape") else "",
-                "num_classes": data_cfg.get("num_classes", ""),
-            })
-    return pd.DataFrame(results)
-
-
 def main():
-    df_results = pd.read_csv('jsc_results.csv')
-    df_configs = extract_additional_info()
-    
-    df = pd.merge(df_results, df_configs, on='model_name')
-    print(f"Loaded {len(df)} JSC models with config data")
+    df = pd.read_csv('jsc_results.csv')
+    print(f"Loaded {len(df)} JSC models")
 
     os.makedirs('graphs', exist_ok=True)
 
@@ -142,7 +84,6 @@ def main():
     print(f"  Parameters: {best['num_params']:,}")
     print(f"  Dense widths: {best['dense_widths']}")
     print(f"  Bits: {best['activation_bit_width']}/{best['logit_bit_width']}")
-    print(f"  Input shape: {best['input_shape']}, Classes: {best['num_classes']}")
 
 
 if __name__ == "__main__":
