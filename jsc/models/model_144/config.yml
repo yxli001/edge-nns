@@ -1,0 +1,17 @@
+data:
+  input_shape:
+  - 16
+  name: jsc
+  num_classes: 5
+model:
+  dense_widths:
+  - 128
+  - 256
+quantization:
+  activation_int_bits: 1
+  activation_quantizer: quantized_relu
+  activation_total_bits: 2
+  alpha: 1
+  logit_int_bits: 1
+  logit_quantizer: quantized_bits
+  logit_total_bits: 2

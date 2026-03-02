@@ -1,0 +1,4 @@
+categorical_accuracy: 0.666700005531311
+ensemble_size: 3
+loss: 1.3197193145751953
+seed: 42
