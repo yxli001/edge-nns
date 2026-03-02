@@ -1,8 +1,6 @@
 import os
-import sys
 import shutil
 import yaml
-import numpy as np
 
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
@@ -71,7 +69,7 @@ class QEnsemble:
 
         self.ensemble_model.compile(**self.compile_kwargs)
 
-        best_weights_path = os.path.join(self.model_dir, "ensemble_best.weights.h5")
+        best_weights_path = os.path.join(self.model_dir, "ensemble.h5")
 
         callbacks = [
             keras.callbacks.EarlyStopping(
@@ -85,6 +83,8 @@ class QEnsemble:
             ),
         ]
 
+        print(self.ensemble_model.summary())
+
         self.ensemble_model.fit(
             x_train,
             y_train,
@@ -96,12 +96,17 @@ class QEnsemble:
             verbose=1,
         )
 
-        # Save final weights
-        self.ensemble_model.save_weights(
-            os.path.join(self.model_dir, "ensemble_final.weights.h5")
-        )
+        if os.path.exists(best_weights_path):
+            self.ensemble_model.load_weights(best_weights_path)
+        else:
+            self.ensemble_model.save_weights(best_weights_path)
+
+        for i, model in enumerate(self.models):
+            model.save_weights(os.path.join(self.model_dir, f"model_{i}.h5"))
 
         results = self.ensemble_model.evaluate(x_test, y_test, verbose=1, return_dict=True)
+        if not isinstance(results, dict):
+            raise RuntimeError("Expected evaluate(return_dict=True) to return a dict.")
         self._save_eval(results)
 
         print(f"\n[QEnsemble] Saved to: {self.model_dir}")
@@ -114,6 +119,8 @@ class QEnsemble:
 
     def eval(self, x, y):
         results = self.ensemble_model.evaluate(x, y, verbose=0, return_dict=True)
+        if not isinstance(results, dict):
+            raise RuntimeError("Expected evaluate(return_dict=True) to return a dict.")
         self._save_eval(results)
         return results
 
@@ -121,5 +128,6 @@ class QEnsemble:
         payload = {k: float(v) for k, v in results.items()}
         payload["ensemble_size"] = self.size
         payload["seed"] = self.seed
+        payload["num_params"] = int(self.ensemble_model.count_params())
         with open(os.path.join(self.model_dir, "eval.yml"), "w") as f:
             yaml.dump(payload, f)
