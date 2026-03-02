@@ -43,7 +43,11 @@ class QEnsemble:
 
         self.model_dir = model_dir
         os.makedirs(self.model_dir, exist_ok=True)
-        shutil.copy(config_file, os.path.join(self.model_dir, "config.yml"))
+        dest_config = os.path.join(self.model_dir, "config.yml")
+        src_config = os.path.realpath(config_file)
+        dest_config_real = os.path.realpath(dest_config)
+        if src_config != dest_config_real:
+            shutil.copy(config_file, dest_config)
 
         shared_input = keras.layers.Input(shape=input_shape, name="ensemble_input")
 
