@@ -1,0 +1,1 @@
+model_name,num_params,test_accuracy,test_loss,activation_bit_width,logit_bit_width

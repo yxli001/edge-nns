@@ -43,7 +43,7 @@ def qkeras_dense_model(
         activation_total_bits,
         activation_int_bits,
     )
-    x = x_in = Input(in_shape, name="input1")
+    x = x_in = Input((in_shape,), name="input1")
 
     for i, w in enumerate(dense_widths):
       x = QDense(
