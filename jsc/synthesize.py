@@ -10,8 +10,7 @@ os.environ["TF_USE_LEGACY_KERAS"] = "1"
 import yaml
 import tensorflow as tf
 import hls4ml
-
-import load_model as jsc_load_model
+import qkeras
 
 keras = tf.keras
 
@@ -20,14 +19,34 @@ ENSEMBLE_DIR  = os.path.join(os.path.dirname(__file__), "ensemble/results/ensemb
 WEIGHTS_FILE  = os.path.join(ENSEMBLE_DIR, "ensemble_best.weights.h5")
 CONFIG_FILE   = os.path.join(ENSEMBLE_DIR, "config.yml")
 ENSEMBLE_SIZE = 2
+NUM_CLASSES   = 5
 # ---------------
+
+
+def build_member_no_names(config):
+    """
+    Build a JSC member model WITHOUT explicit layer names so QKeras
+    auto-names them as q_dense, q_dense_1, q_dense_2 — matching what
+    was saved in ensemble_best.weights.h5.
+    """
+    q = config["quantization"]
+    lq = qkeras.quantizers.quantized_bits(q["logit_total_bits"], q["logit_int_bits"], alpha=q["alpha"])
+    aq = qkeras.quantizers.quantized_relu(q["activation_total_bits"], q["activation_int_bits"])
+
+    x = x_in = keras.layers.Input(tuple(config["data"]["input_shape"]))
+    for w in config["model"]["dense_widths"]:
+        x = qkeras.qlayers.QDense(w, kernel_quantizer=lq, bias_quantizer=lq)(x)
+        x = keras.layers.BatchNormalization()(x)
+        x = qkeras.qlayers.QActivation(activation=aq)(x)
+    x = qkeras.qlayers.QDense(NUM_CLASSES, kernel_quantizer=lq, bias_quantizer=lq)(x)
+    return keras.Model(inputs=x_in, outputs=x)
 
 
 def extract_members(config_file, weights_file, size):
     """
-    Rebuild the ensemble graph WITHOUT renaming layers so the names match
-    what Keras saved in ensemble_best.weights.h5 (functional, functional_1, ...).
-    Then load weights and return each member as a standalone model.
+    Rebuild the ensemble graph using auto-named layers (matching the saved
+    weight names: q_dense, q_dense_1, ...) then load weights and return
+    each member as a standalone model.
     """
     with open(config_file) as f:
         config = yaml.safe_load(f)
@@ -37,9 +56,9 @@ def extract_members(config_file, weights_file, size):
 
     members = []
     outputs = []
-    print("Reconstructing ensemble graph (no layer renaming)...")
+    print("Reconstructing ensemble graph (auto-named layers)...")
     for i in range(size):
-        m = jsc_load_model.load_model(config_file)  # do NOT rename layers
+        m = build_member_no_names(config)
         members.append(m)
         out = m(shared_input)
         outputs.append(out)
