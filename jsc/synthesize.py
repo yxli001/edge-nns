@@ -30,7 +30,7 @@ def build_member_no_names(config):
     was saved in ensemble_best.weights.h5.
     """
     q = config["quantization"]
-    lq = qkeras.quantizers.quantized_bits(q["logit_total_bits"], q["logit_int_bits"], alpha=q["alpha"])
+    lq = qkeras.quantizers.quantized_bits(q["logit_total_bits"], q["logit_int_bits"])
     aq = qkeras.quantizers.quantized_relu(q["activation_total_bits"], q["activation_int_bits"])
 
     x = x_in = keras.layers.Input(tuple(config["data"]["input_shape"]))
