@@ -8,6 +8,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ensemble'))
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
 import yaml
+import numpy as np
+import h5py
 import tensorflow as tf
 import hls4ml
 import qkeras
@@ -42,32 +44,58 @@ def build_member_no_names(config):
     return keras.Model(inputs=x_in, outputs=x)
 
 
+def load_member_weights_h5py(member_model, weights_file, member_idx):
+    """
+    Load weights for one ensemble member directly from the h5 file using h5py.
+    Matches layers by name and assigns vars by index.
+    Skips any layers not found in the file (e.g. a_dense from newer QKeras).
+    """
+    member_key = "functional" if member_idx == 0 else f"functional_{member_idx}"
+    loaded, skipped = 0, 0
+
+    with h5py.File(weights_file, "r") as f:
+        if f"layers/{member_key}/layers" not in f:
+            raise ValueError(f"Could not find '{member_key}' in {weights_file}. "
+                             f"Top-level keys: {list(f['layers'].keys())}")
+        member_layers = f[f"layers/{member_key}/layers"]
+
+        for layer in member_model.layers:
+            name = layer.name
+            if name not in member_layers or "vars" not in member_layers[name]:
+                skipped += 1
+                continue
+            vars_grp = member_layers[name]["vars"]
+            for i, var in enumerate(layer.variables):
+                if str(i) in vars_grp:
+                    var.assign(np.array(vars_grp[str(i)]))
+                    loaded += 1
+
+    print(f"  Member {member_idx}: loaded {loaded} weight tensors, skipped {skipped} layers")
+
+
 def extract_members(config_file, weights_file, size):
     """
-    Rebuild the ensemble graph using auto-named layers (matching the saved
-    weight names: q_dense, q_dense_1, ...) then load weights and return
-    each member as a standalone model.
+    Build standalone member models and load their weights directly from h5.
     """
     with open(config_file) as f:
         config = yaml.safe_load(f)
     input_shape = tuple(config["data"]["input_shape"])
 
+    # Build members and call with shared input so all sublayer variables are created
     shared_input = keras.layers.Input(shape=input_shape, name="ensemble_input")
-
-    members = []
-    outputs = []
-    print("Reconstructing ensemble graph (auto-named layers)...")
+    members, outputs = [], []
+    print("Building member models...")
     for i in range(size):
         m = build_member_no_names(config)
         members.append(m)
-        out = m(shared_input)
-        outputs.append(out)
+        outputs.append(m(shared_input))
+    # Create ensemble model just to trigger variable creation in all layers
+    keras.Model(inputs=shared_input, outputs=keras.layers.Average()(outputs))
 
-    avg_output = keras.layers.Average()(outputs)
-    ensemble_model = keras.Model(inputs=shared_input, outputs=avg_output)
-
+    # Load weights for each member directly via h5py
     print(f"Loading weights from: {weights_file}")
-    ensemble_model.load_weights(weights_file)
+    for i, m in enumerate(members):
+        load_member_weights_h5py(m, weights_file, i)
     print("Weights loaded.")
 
     # Wrap each member as a standalone model for hls4ml
