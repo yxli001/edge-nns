@@ -1,0 +1,4 @@
+ensemble_size: 5
+loss: 0.7776612639427185
+seed: 42
+sparse_categorical_accuracy: 0.7272590398788452
