@@ -1,6 +1,7 @@
 import sys
 import os
 import argparse
+import tempfile
 
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ensemble'))
@@ -10,57 +11,60 @@ os.environ["TF_USE_LEGACY_KERAS"] = "1"
 import yaml
 import tensorflow as tf
 import hls4ml
+
 import load_model as jsc_load_model
+from qensemble import QEnsemble
 
 keras = tf.keras
 
 # --- Config ---
-ENSEMBLE_DIR = os.path.join(os.path.dirname(__file__), "ensemble/results/ensemble_36")
-WEIGHTS_FILE = os.path.join(ENSEMBLE_DIR, "ensemble_best.weights.h5")
-CONFIG_FILE  = os.path.join(ENSEMBLE_DIR, "config.yml")
-FPGA_PART    = "xc7z020clg400-1"   # Zynq on PYNQ-Z2
+ENSEMBLE_DIR  = os.path.join(os.path.dirname(__file__), "ensemble/results/ensemble_36")
+WEIGHTS_FILE  = os.path.join(ENSEMBLE_DIR, "ensemble_best.weights.h5")
+CONFIG_FILE   = os.path.join(ENSEMBLE_DIR, "config.yml")
 ENSEMBLE_SIZE = 2
 # ---------------
 
 
-def rebuild_ensemble_and_extract_members(config_file, weights_file, size):
+def extract_members(config_file, weights_file, size):
     """
-    Reconstructs the QEnsemble Keras graph, loads saved weights,
-    then returns the two individual member Keras models.
+    Reconstruct the ensemble using the exact same QEnsemble code used during
+    training, load the saved weights, then return standalone member models.
     """
-    with open(config_file) as f:
-        config = yaml.safe_load(f)
+    # QEnsemble.__init__ needs a model_dir to copy config into — use a temp dir
+    tmp_dir = tempfile.mkdtemp(prefix="qensemble_tmp_")
 
-    input_shape = tuple(config["data"]["input_shape"])
-    shared_input = keras.layers.Input(shape=input_shape, name="ensemble_input")
+    # dummy load_data — we only need the graph, not training data
+    def dummy_load_data():
+        return (None, None), (None, None)
 
-    members = []
-    outputs = []
-    for i in range(size):
-        m = jsc_load_model.load_model(config_file)
-        members.append(m)
-        # mathc the naming used during training (see qensemble.py line 57)
-        for layer in m.layers:
-            layer._name = f"m{i}_{layer.name}"
-        out = m(shared_input)
-        outputs.append(out)
-
-    avg_output = keras.layers.Average()(outputs)
-    ensemble_model = keras.Model(inputs=shared_input, outputs=avg_output)
+    print("Reconstructing ensemble graph (using QEnsemble)...")
+    qe = QEnsemble(
+        config_file=config_file,
+        load_model_fn=jsc_load_model.load_model,
+        load_data_fn=dummy_load_data,
+        compile_kwargs={},
+        size=size,
+        seed=42,
+        model_dir=tmp_dir,
+    )
 
     print(f"Loading weights from: {weights_file}")
-    ensemble_model.load_weights(weights_file)
+    qe.ensemble_model.load_weights(weights_file)
     print("Weights loaded.")
 
-    # wrap each member as a standalone model so hls4ml can convert it
+    with open(config_file) as f:
+        config = yaml.safe_load(f)
+    input_shape = tuple(config["data"]["input_shape"])
+
+    # Wrap each member as a standalone model for hls4ml
     standalone = []
-    for i, m in enumerate(members):
+    for i, m in enumerate(qe.models):
         inp = keras.layers.Input(shape=input_shape, name="input1")
         out = m(inp)
         standalone_model = keras.Model(inputs=inp, outputs=out, name=f"jsc_member_{i+1}")
         standalone.append(standalone_model)
 
-    return standalone
+    return standalone, config
 
 
 def synthesize_member(member_model, member_idx, config):
@@ -76,23 +80,17 @@ def synthesize_member(member_model, member_idx, config):
 
     member_model.summary()
 
-    # generate hls4ml config from the Keras model
     hls_config = hls4ml.utils.config_from_keras_model(member_model, granularity="name")
 
-    # match the bit widths used during training
-    act_bits = config["quantization"]["activation_total_bits"]
-    act_int  = config["quantization"]["activation_int_bits"]
     log_bits = config["quantization"]["logit_total_bits"]
     log_int  = config["quantization"]["logit_int_bits"]
-
     hls_config["Model"]["Precision"] = f"ap_fixed<{log_bits},{log_int}>"
     hls_config["Model"]["ReuseFactor"] = 1
 
-    print("hls4ml config:")
     import pprint
+    print("hls4ml config:")
     pprint.pprint(hls_config)
 
-    # convert to HLS project
     hls_model = hls4ml.converters.convert_from_keras_model(
         member_model,
         hls_config=hls_config,
@@ -103,7 +101,6 @@ def synthesize_member(member_model, member_idx, config):
         driver="python",
     )
 
-    # C synthesis + export IP core
     print(f"\nBuilding Member {member_idx} (C synthesis + IP export)...")
     hls_model.build(csim=False, synth=True, export=True)
 
@@ -123,11 +120,7 @@ def main():
     )
     args = parser.parse_args()
 
-    with open(CONFIG_FILE) as f:
-        config = yaml.safe_load(f)
-
-    print("Reconstructing ensemble and extracting individual members...")
-    members = rebuild_ensemble_and_extract_members(CONFIG_FILE, WEIGHTS_FILE, ENSEMBLE_SIZE)
+    members, config = extract_members(CONFIG_FILE, WEIGHTS_FILE, ENSEMBLE_SIZE)
 
     to_run = []
     if args.member == "1":
