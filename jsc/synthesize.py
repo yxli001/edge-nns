@@ -1,7 +1,6 @@
 import sys
 import os
 import argparse
-import tempfile
 
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ensemble'))
@@ -13,7 +12,6 @@ import tensorflow as tf
 import hls4ml
 
 import load_model as jsc_load_model
-from qensemble import QEnsemble
 
 keras = tf.keras
 
@@ -27,38 +25,35 @@ ENSEMBLE_SIZE = 2
 
 def extract_members(config_file, weights_file, size):
     """
-    Reconstruct the ensemble using the exact same QEnsemble code used during
-    training, load the saved weights, then return standalone member models.
+    Rebuild the ensemble graph WITHOUT renaming layers so the names match
+    what Keras saved in ensemble_best.weights.h5 (functional, functional_1, ...).
+    Then load weights and return each member as a standalone model.
     """
-    # QEnsemble.__init__ needs a model_dir to copy config into — use a temp dir
-    tmp_dir = tempfile.mkdtemp(prefix="qensemble_tmp_")
-
-    # dummy load_data — we only need the graph, not training data
-    def dummy_load_data():
-        return (None, None), (None, None)
-
-    print("Reconstructing ensemble graph (using QEnsemble)...")
-    qe = QEnsemble(
-        config_file=config_file,
-        load_model_fn=jsc_load_model.load_model,
-        load_data_fn=dummy_load_data,
-        compile_kwargs={},
-        size=size,
-        seed=42,
-        model_dir=tmp_dir,
-    )
-
-    print(f"Loading weights from: {weights_file}")
-    qe.ensemble_model.load_weights(weights_file)
-    print("Weights loaded.")
-
     with open(config_file) as f:
         config = yaml.safe_load(f)
     input_shape = tuple(config["data"]["input_shape"])
 
+    shared_input = keras.layers.Input(shape=input_shape, name="ensemble_input")
+
+    members = []
+    outputs = []
+    print("Reconstructing ensemble graph (no layer renaming)...")
+    for i in range(size):
+        m = jsc_load_model.load_model(config_file)  # do NOT rename layers
+        members.append(m)
+        out = m(shared_input)
+        outputs.append(out)
+
+    avg_output = keras.layers.Average()(outputs)
+    ensemble_model = keras.Model(inputs=shared_input, outputs=avg_output)
+
+    print(f"Loading weights from: {weights_file}")
+    ensemble_model.load_weights(weights_file)
+    print("Weights loaded.")
+
     # Wrap each member as a standalone model for hls4ml
     standalone = []
-    for i, m in enumerate(qe.models):
+    for i, m in enumerate(members):
         inp = keras.layers.Input(shape=input_shape, name="input1")
         out = m(inp)
         standalone_model = keras.Model(inputs=inp, outputs=out, name=f"jsc_member_{i+1}")
