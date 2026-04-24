@@ -128,6 +128,7 @@ def synthesize_member(member_model, member_idx, config):
     log_int  = config["quantization"]["logit_int_bits"]
     hls_config["Model"]["Precision"] = f"ap_fixed<{log_bits},{log_int}>"
     hls_config["Model"]["ReuseFactor"] = 1
+    hls_config["Model"]["IOType"] = "io_stream"
 
     import pprint
     print("hls4ml config:")
